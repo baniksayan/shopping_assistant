@@ -45,5 +45,16 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<!-- Location usage descriptions -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>We need your location to show nearby stores and best deals</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>We need your location to show nearby stores and best deals</string>
+
+    <!-- Microphone & Speech Recognition usage descriptions -->
+    <key>NSMicrophoneUsageDescription</key>
+    <string>We need access to your microphone for voice search</string>
+    <key>NSSpeechRecognitionUsageDescription</key>
+    <string>We need access to speech recognition for voice search</string>
 </dict>
 </plist>

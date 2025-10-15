@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
+import '../../../../data/data_sources/local/hive_service.dart';
+import '../../../../core/theme/app_themes.dart';
+import '../../auth/views/login_view.dart';
+import '../../home/views/home_view.dart';
 
-/// Animated Splash Screen for Shopping Assistant
-/// Features multiple synchronized animations including:
-/// - Shopping bag scale and pulse
-/// - Product items flying into the bag
-/// - Text fade and slide animations
-/// - Smooth transition effects
 class SplashView extends StatefulWidget {
-  const SplashView({super.key});
+  final Function(AppTheme) onThemeChanged;
+  
+  const SplashView({super.key, required this.onThemeChanged});
 
   @override
   State<SplashView> createState() => _SplashViewState();
@@ -31,7 +31,6 @@ class _SplashViewState extends State<SplashView>
   late Animation<double> _pulseAnimation;
   late Animation<double> _shimmerAnimation;
   
-  // Product animations (3 items)
   late List<Animation<double>> _itemAnimations;
   late List<Animation<double>> _itemRotations;
 
@@ -43,99 +42,69 @@ class _SplashViewState extends State<SplashView>
   }
 
   void _initializeAnimations() {
-    // Bag animation controller (1.2 seconds)
     _bagController = AnimationController(
       duration: const Duration(milliseconds: 1200),
       vsync: this,
     );
 
-    // Items animation controller (1.5 seconds)
     _itemsController = AnimationController(
       duration: const Duration(milliseconds: 1500),
       vsync: this,
     );
 
-    // Text animation controller (1 second)
     _textController = AnimationController(
       duration: const Duration(milliseconds: 1000),
       vsync: this,
     );
 
-    // Pulse animation (continuous)
     _pulseController = AnimationController(
       duration: const Duration(milliseconds: 1500),
       vsync: this,
     );
 
-    // Shimmer animation (continuous)
     _shimmerController = AnimationController(
       duration: const Duration(milliseconds: 2000),
       vsync: this,
     );
 
-    // Bag scale animation (bounce effect)
     _bagScale = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _bagController,
-        curve: Curves.elasticOut,
-      ),
+      CurvedAnimation(parent: _bagController, curve: Curves.elasticOut),
     );
 
-    // Bag slide animation (from bottom)
     _bagSlide = Tween<double>(begin: 100.0, end: 0.0).animate(
-      CurvedAnimation(
-        parent: _bagController,
-        curve: Curves.easeOutCubic,
-      ),
+      CurvedAnimation(parent: _bagController, curve: Curves.easeOutCubic),
     );
 
-    // Text animations
     _textOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _textController,
-        curve: Curves.easeIn,
-      ),
+      CurvedAnimation(parent: _textController, curve: Curves.easeIn),
     );
 
     _textSlide = Tween<double>(begin: 30.0, end: 0.0).animate(
-      CurvedAnimation(
-        parent: _textController,
-        curve: Curves.easeOutCubic,
-      ),
+      CurvedAnimation(parent: _textController, curve: Curves.easeOutCubic),
     );
 
-    // Pulse animation (scale effect)
     _pulseAnimation = Tween<double>(begin: 1.0, end: 1.1).animate(
-      CurvedAnimation(
-        parent: _pulseController,
-        curve: Curves.easeInOut,
-      ),
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
 
-    // Shimmer animation
     _shimmerAnimation = Tween<double>(begin: -2.0, end: 2.0).animate(
-      CurvedAnimation(
-        parent: _shimmerController,
-        curve: Curves.linear,
-      ),
+      CurvedAnimation(parent: _shimmerController, curve: Curves.linear),
     );
 
-    // Product item animations (3 items with staggered timing)
     _itemAnimations = List.generate(
       3,
       (index) => Tween<double>(begin: 0.0, end: 1.0).animate(
         CurvedAnimation(
           parent: _itemsController,
           curve: Interval(
-            index * 0.2, // Staggered start
-            0.6 + (index * 0.2), // Staggered end
+            index * 0.2,
+            0.6 + (index * 0.2),
             curve: Curves.easeOutCubic,
           ),
         ),
       ),
     );
 
-    // Item rotation animations
     _itemRotations = List.generate(
       3,
       (index) => Tween<double>(begin: 0.0, end: 1.0).animate(
@@ -152,34 +121,38 @@ class _SplashViewState extends State<SplashView>
   }
 
   void _startAnimationSequence() async {
-    // Start bag animation
     await Future.delayed(const Duration(milliseconds: 300));
     _bagController.forward();
 
-    // Start items animation
     await Future.delayed(const Duration(milliseconds: 800));
     _itemsController.forward();
 
-    // Start text animation
     await Future.delayed(const Duration(milliseconds: 1200));
     _textController.forward();
 
-    // Start continuous pulse
     await Future.delayed(const Duration(milliseconds: 1500));
     _pulseController.repeat(reverse: true);
-
-    // Start shimmer effect
     _shimmerController.repeat();
 
-    // Navigate to home after all animations
     await Future.delayed(const Duration(milliseconds: 3500));
+    
     if (mounted) {
-      // TODO: Navigate to home screen
-      // Navigator.pushReplacement(
-      //   context,
-      //   MaterialPageRoute(builder: (context) => const HomeView()),
-      // );
+      _navigateToNextScreen();
     }
+  }
+
+  void _navigateToNextScreen() {
+    // Check if user is logged in
+    final isLoggedIn = HiveService.isUserLoggedIn();
+    
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (context) => isLoggedIn 
+          ? HomeView(onThemeChanged: widget.onThemeChanged)
+          : LoginView(onThemeChanged: widget.onThemeChanged),
+      ),
+    );
   }
 
   @override
@@ -195,48 +168,33 @@ class _SplashViewState extends State<SplashView>
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
+    final theme = Theme.of(context);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF4E9D7), // India theme background
+      backgroundColor: theme.scaffoldBackgroundColor,
       body: Stack(
         children: [
-          // Animated background circles
-          _buildBackgroundCircles(size),
-
-          // Main content
+          _buildBackgroundCircles(size, theme),
           Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // Shopping animation container
                 SizedBox(
                   height: 350,
                   child: Stack(
                     alignment: Alignment.center,
                     children: [
-                      // Product items
-                      ..._buildProductItems(size),
-
-                      // Shopping bag
-                      _buildShoppingBag(),
+                      ..._buildProductItems(size, theme),
+                      _buildShoppingBag(theme),
                     ],
                   ),
                 ),
-
                 const SizedBox(height: 40),
-
-                // App title with animation
-                _buildAppTitle(),
-
+                _buildAppTitle(theme),
                 const SizedBox(height: 12),
-
-                // Tagline with animation
-                _buildTagline(),
-
+                _buildTagline(theme),
                 const SizedBox(height: 60),
-
-                // Loading indicator
-                _buildLoadingIndicator(),
+                _buildLoadingIndicator(theme),
               ],
             ),
           ),
@@ -245,7 +203,7 @@ class _SplashViewState extends State<SplashView>
     );
   }
 
-  Widget _buildBackgroundCircles(Size size) {
+  Widget _buildBackgroundCircles(Size size, ThemeData theme) {
     return AnimatedBuilder(
       animation: _shimmerController,
       builder: (context, child) {
@@ -259,7 +217,7 @@ class _SplashViewState extends State<SplashView>
                 height: 300,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: const Color(0xFFD97D55).withOpacity(0.1),
+                  color: theme.primaryColor.withOpacity(0.1),
                 ),
               ),
             ),
@@ -271,7 +229,7 @@ class _SplashViewState extends State<SplashView>
                 height: 350,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: const Color(0xFFB8C4A9).withOpacity(0.1),
+                  color: theme.colorScheme.secondary.withOpacity(0.1),
                 ),
               ),
             ),
@@ -281,15 +239,13 @@ class _SplashViewState extends State<SplashView>
     );
   }
 
-  List<Widget> _buildProductItems(Size size) {
-    // Product positions (x, y) relative to bag center
+  List<Widget> _buildProductItems(Size size, ThemeData theme) {
     final positions = [
-      const Offset(-120, -150), // Top left
-      const Offset(120, -140),  // Top right
-      const Offset(0, -180),    // Top center
+      const Offset(-120, -150),
+      const Offset(120, -140),
+      const Offset(0, -180),
     ];
 
-    // Product icons
     final icons = [
       Icons.shopping_basket,
       Icons.local_grocery_store,
@@ -297,9 +253,9 @@ class _SplashViewState extends State<SplashView>
     ];
 
     final colors = [
-      const Color(0xFF6FA4AF),
-      const Color(0xFFD97D55),
-      const Color(0xFFB8C4A9),
+      theme.colorScheme.tertiary,
+      theme.primaryColor,
+      theme.colorScheme.secondary,
     ];
 
     return List.generate(3, (index) {
@@ -309,7 +265,6 @@ class _SplashViewState extends State<SplashView>
           final progress = _itemAnimations[index].value;
           final rotation = _itemRotations[index].value;
 
-          // Calculate current position (move from start position to bag)
           final currentX = positions[index].dx * (1 - progress);
           final currentY = positions[index].dy * (1 - progress);
 
@@ -321,7 +276,7 @@ class _SplashViewState extends State<SplashView>
               child: Transform.rotate(
                 angle: rotation * math.pi * 2,
                 child: Transform.scale(
-                  scale: 1.0 - (progress * 0.5), // Shrink as it moves
+                  scale: 1.0 - (progress * 0.5),
                   child: Container(
                     width: 50,
                     height: 50,
@@ -336,11 +291,7 @@ class _SplashViewState extends State<SplashView>
                         ),
                       ],
                     ),
-                    child: Icon(
-                      icons[index],
-                      color: Colors.white,
-                      size: 28,
-                    ),
+                    child: Icon(icons[index], color: Colors.white, size: 28),
                   ),
                 ),
               ),
@@ -351,7 +302,7 @@ class _SplashViewState extends State<SplashView>
     });
   }
 
-  Widget _buildShoppingBag() {
+  Widget _buildShoppingBag(ThemeData theme) {
     return AnimatedBuilder(
       animation: Listenable.merge([_bagController, _pulseController]),
       builder: (context, child) {
@@ -363,11 +314,11 @@ class _SplashViewState extends State<SplashView>
               width: 160,
               height: 160,
               decoration: BoxDecoration(
-                color: const Color(0xFFD97D55),
+                color: theme.primaryColor,
                 borderRadius: BorderRadius.circular(20),
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFFD97D55).withOpacity(0.4),
+                    color: theme.primaryColor.withOpacity(0.4),
                     blurRadius: 30,
                     spreadRadius: 10,
                   ),
@@ -376,13 +327,11 @@ class _SplashViewState extends State<SplashView>
               child: Stack(
                 alignment: Alignment.center,
                 children: [
-                  // Bag icon
                   const Icon(
                     Icons.shopping_bag_outlined,
                     size: 80,
                     color: Colors.white,
                   ),
-                  // Sparkle effect
                   AnimatedBuilder(
                     animation: _shimmerController,
                     builder: (context, child) {
@@ -415,7 +364,7 @@ class _SplashViewState extends State<SplashView>
     );
   }
 
-  Widget _buildAppTitle() {
+  Widget _buildAppTitle(ThemeData theme) {
     return AnimatedBuilder(
       animation: _textController,
       builder: (context, child) {
@@ -423,12 +372,12 @@ class _SplashViewState extends State<SplashView>
           offset: Offset(0, _textSlide.value),
           child: Opacity(
             opacity: _textOpacity.value,
-            child: const Text(
+            child: Text(
               'Shopping Assistant',
               style: TextStyle(
                 fontSize: 32,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFFD97D55),
+                color: theme.primaryColor,
                 letterSpacing: 1.2,
               ),
             ),
@@ -438,7 +387,7 @@ class _SplashViewState extends State<SplashView>
     );
   }
 
-  Widget _buildTagline() {
+  Widget _buildTagline(ThemeData theme) {
     return AnimatedBuilder(
       animation: _textController,
       builder: (context, child) {
@@ -446,11 +395,11 @@ class _SplashViewState extends State<SplashView>
           offset: Offset(0, _textSlide.value),
           child: Opacity(
             opacity: _textOpacity.value * 0.8,
-            child: const Text(
+            child: Text(
               'Find the best deals around you',
               style: TextStyle(
                 fontSize: 16,
-                color: Color(0xFF6FA4AF),
+                color: theme.colorScheme.tertiary,
                 letterSpacing: 0.5,
               ),
               textAlign: TextAlign.center,
@@ -461,7 +410,7 @@ class _SplashViewState extends State<SplashView>
     );
   }
 
-  Widget _buildLoadingIndicator() {
+  Widget _buildLoadingIndicator(ThemeData theme) {
     return AnimatedBuilder(
       animation: _textController,
       builder: (context, child) {
@@ -473,7 +422,7 @@ class _SplashViewState extends State<SplashView>
             child: CircularProgressIndicator(
               strokeWidth: 3,
               valueColor: AlwaysStoppedAnimation<Color>(
-                const Color(0xFFD97D55).withOpacity(0.7),
+                theme.primaryColor.withOpacity(0.7),
               ),
             ),
           ),
