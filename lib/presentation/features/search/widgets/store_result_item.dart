@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../data/models/product_model.dart';
+import '../../../../core/utils/number_formatter.dart';
 
 class StoreResultItem extends StatelessWidget {
   final StoreProductModel store;
@@ -75,23 +76,14 @@ class StoreResultItem extends StatelessWidget {
             
             const SizedBox(height: 12),
             
-            // Price
-            Row(
-              children: [
-                Icon(
-                  Icons.currency_rupee,
-                  size: 24,
-                  color: theme.primaryColor,
-                ),
-                Text(
-                  store.price.toStringAsFixed(0),
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: theme.primaryColor,
-                  ),
-                ),
-              ],
+            // Price - FIXED: Remove Icon, use formatIndianPrice
+            Text(
+              NumberFormatter.formatIndianPrice(store.price),
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: theme.primaryColor,
+              ),
             ),
             
             const SizedBox(height: 12),
@@ -139,7 +131,7 @@ class StoreResultItem extends StatelessWidget {
                   ),
                   const SizedBox(width: 4),
                   Text(
-                    '(${(store.rating! * 234).toInt()} reviews)',
+                    '(${store.reviewCount ?? (store.rating! * 234).toInt()} reviews)',
                     style: TextStyle(
                       fontSize: 12,
                       color: theme.colorScheme.tertiary.withOpacity(0.6),

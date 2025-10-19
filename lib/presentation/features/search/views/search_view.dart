@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import '../../../../data/models/product_model.dart';
 import '../../../../data/data_sources/local/search_data.dart';
+import '../../../../data/data_sources/local/hive_service.dart';
 import '../widgets/search_suggestion_item.dart';
 import '../widgets/store_result_item.dart';
 import '../widgets/trending_category_card.dart';
+import '../widgets/smart_comparison_card.dart';
+import '../../../../core/utils/number_formatter.dart';
 
 class SearchView extends StatefulWidget {
   final bool openWithVoice;
@@ -24,6 +27,8 @@ class _SearchViewState extends State<SearchView>
   bool _isListening = false;
   bool _speechEnabled = false;
   bool _showResults = false;
+  bool _showQuickTips = true;
+  bool _hasSearched = false;
   
   List<ProductModel> _suggestions = [];
   List<StoreProductModel> _offlineResults = [];
@@ -37,21 +42,39 @@ class _SearchViewState extends State<SearchView>
   @override
   void initState() {
     super.initState();
+    _loadSearchHistory();
     _initSpeech();
     _initAnimations();
     
     if (widget.openWithVoice) {
-      Future.delayed(const Duration(milliseconds: 300), () {
+      Future.delayed(const Duration(milliseconds: 400), () {
         _startListening();
       });
     } else {
-      // Auto-focus search field when opening normally
-      Future.delayed(const Duration(milliseconds: 300), () {
-        _searchFocusNode.requestFocus();
+      // Auto-focus and show keyboard
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        FocusScope.of(context).requestFocus(_searchFocusNode);
       });
     }
     
     _searchController.addListener(_onSearchChanged);
+  }
+
+  void _loadSearchHistory() {
+    setState(() {
+      _hasSearched = HiveService.hasSearched();
+      _showQuickTips = !_hasSearched;
+    });
+  }
+
+  Future<void> _markAsSearched() async {
+    if (!_hasSearched) {
+      await HiveService.markAsSearched();
+      setState(() {
+        _hasSearched = true;
+        _showQuickTips = false;
+      });
+    }
   }
 
   void _initSpeech() async {
@@ -72,11 +95,11 @@ class _SearchViewState extends State<SearchView>
 
   void _initAnimations() {
     _micAnimController = AnimationController(
-      duration: const Duration(milliseconds: 800),
+      duration: const Duration(milliseconds: 600),
       vsync: this,
     );
 
-    _micPulse = Tween<double>(begin: 1.0, end: 1.15).animate(
+    _micPulse = Tween<double>(begin: 1.0, end: 1.2).animate(
       CurvedAnimation(
         parent: _micAnimController,
         curve: Curves.easeInOut,
@@ -84,8 +107,8 @@ class _SearchViewState extends State<SearchView>
     );
 
     _micColor = ColorTween(
-      begin: Colors.red,
-      end: Colors.red[700],
+      begin: Colors.red[600],
+      end: Colors.red[800],
     ).animate(_micAnimController);
   }
 
@@ -140,7 +163,10 @@ class _SearchViewState extends State<SearchView>
     _micAnimController.reset();
   }
 
-  void _onSuggestionTap(ProductModel product) {
+  void _onSuggestionTap(ProductModel product) async {
+    await _markAsSearched();
+    await HiveService.saveSearchHistory(product.name, product.id);
+    
     setState(() {
       _searchController.text = product.name;
       _showResults = true;
@@ -173,7 +199,7 @@ class _SearchViewState extends State<SearchView>
           backgroundColor: isError ? Colors.red : Colors.green,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(12),
           ),
           margin: const EdgeInsets.all(16),
         ),
@@ -199,10 +225,7 @@ class _SearchViewState extends State<SearchView>
       body: SafeArea(
         child: Column(
           children: [
-            // Animated Search Bar (Hero)
             _buildHeroSearchBar(theme),
-            
-            // Content
             Expanded(
               child: _showResults 
                   ? _buildSearchResults(theme)
@@ -219,22 +242,22 @@ class _SearchViewState extends State<SearchView>
       tag: 'searchBar',
       child: Material(
         color: Colors.white,
-        elevation: 4,
+        elevation: 8,
+        shadowColor: Colors.black.withOpacity(0.1),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // Back Button
               IconButton(
-                icon: Icon(Icons.arrow_back, color: theme.primaryColor),
+                icon: Icon(Icons.arrow_back, color: theme.primaryColor, size: 24),
                 onPressed: () => Navigator.pop(context),
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
+                padding: const EdgeInsets.all(8),
+                constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
               ),
               
-              const SizedBox(width: 12),
+              const SizedBox(width: 4),
               
-              // Search Field
               Expanded(
                 child: Container(
                   height: 48,
@@ -243,56 +266,69 @@ class _SearchViewState extends State<SearchView>
                     borderRadius: BorderRadius.circular(24),
                     border: Border.all(
                       color: _isListening 
-                          ? Colors.red.withOpacity(0.5)
+                          ? Colors.red.withOpacity(0.6)
                           : theme.primaryColor.withOpacity(0.3),
-                      width: 2,
+                      width: 1.5,
                     ),
                   ),
-                  child: TextField(
-                    controller: _searchController,
-                    focusNode: _searchFocusNode,
-                    autofocus: !widget.openWithVoice,
-                    decoration: InputDecoration(
-                      hintText: _isListening 
-                          ? 'Listening...' 
-                          : 'Search products, stores...',
-                      hintStyle: TextStyle(
-                        color: _isListening 
-                            ? Colors.red 
-                            : theme.colorScheme.tertiary.withOpacity(0.5),
-                        fontSize: 15,
+                  child: Row(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.only(left: 16),
+                        child: Icon(
+                          Icons.search,
+                          color: theme.primaryColor,
+                          size: 22,
+                        ),
                       ),
-                      prefixIcon: Icon(
-                        Icons.search,
-                        color: theme.primaryColor,
-                        size: 22,
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: TextField(
+                          controller: _searchController,
+                          focusNode: _searchFocusNode,
+                          autofocus: !widget.openWithVoice,
+                          style: TextStyle(
+                            fontSize: 15,
+                            color: theme.colorScheme.tertiary,
+                          ),
+                          decoration: InputDecoration(
+                            hintText: _isListening 
+                                ? 'Listening...' 
+                                : 'Search products, stores...',
+                            hintStyle: TextStyle(
+                              color: _isListening 
+                                  ? Colors.red 
+                                  : theme.colorScheme.tertiary.withOpacity(0.5),
+                              fontSize: 15,
+                            ),
+                            border: InputBorder.none,
+                            contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                            isDense: true,
+                          ),
+                        ),
                       ),
-                      suffixIcon: _searchController.text.isNotEmpty
-                          ? IconButton(
-                              icon: Icon(
-                                Icons.clear,
-                                color: theme.colorScheme.tertiary.withOpacity(0.6),
-                                size: 20,
-                              ),
-                              onPressed: () {
-                                _searchController.clear();
-                                _searchFocusNode.requestFocus();
-                              },
-                            )
-                          : null,
-                      border: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
-                    ),
+                      if (_searchController.text.isNotEmpty)
+                        IconButton(
+                          icon: Icon(
+                            Icons.clear,
+                            color: theme.colorScheme.tertiary.withOpacity(0.6),
+                            size: 20,
+                          ),
+                          onPressed: () {
+                            _searchController.clear();
+                            FocusScope.of(context).requestFocus(_searchFocusNode);
+                          },
+                          padding: const EdgeInsets.all(8),
+                          constraints: const BoxConstraints(),
+                        ),
+                      const SizedBox(width: 8),
+                    ],
                   ),
                 ),
               ),
               
-              const SizedBox(width: 12),
+              const SizedBox(width: 8),
               
-              // Mic Button
               GestureDetector(
                 onTap: _isListening ? _stopListening : _startListening,
                 child: AnimatedBuilder(
@@ -304,17 +340,19 @@ class _SearchViewState extends State<SearchView>
                         width: 48,
                         height: 48,
                         decoration: BoxDecoration(
-                          color: _isListening 
-                              ? _micColor.value 
-                              : theme.primaryColor,
+                          gradient: _isListening
+                              ? LinearGradient(
+                                  colors: [Colors.red[600]!, Colors.red[800]!],
+                                )
+                              : LinearGradient(
+                                  colors: [theme.primaryColor, theme.primaryColor.withOpacity(0.8)],
+                                ),
                           shape: BoxShape.circle,
                           boxShadow: [
                             BoxShadow(
-                              color: (_isListening 
-                                  ? Colors.red 
-                                  : theme.primaryColor).withOpacity(0.3),
-                              blurRadius: _isListening ? 12 : 8,
-                              spreadRadius: _isListening ? 3 : 2,
+                              color: (_isListening ? Colors.red : theme.primaryColor).withOpacity(0.4),
+                              blurRadius: _isListening ? 15 : 10,
+                              spreadRadius: _isListening ? 4 : 2,
                             ),
                           ],
                         ),
@@ -338,7 +376,6 @@ class _SearchViewState extends State<SearchView>
   Widget _buildSearchSuggestions(ThemeData theme) {
     return CustomScrollView(
       slivers: [
-        // Suggestions List
         if (_suggestions.isNotEmpty)
           SliverPadding(
             padding: const EdgeInsets.all(16),
@@ -356,42 +393,239 @@ class _SearchViewState extends State<SearchView>
             ),
           )
         else ...[
-          // Trending Searches Header
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 24, 20, 16),
-              child: Row(
+          if (_showQuickTips) 
+            _buildQuickTips(theme)
+          else 
+            _buildSmartComparisons(theme),
+          
+          _buildTrendingSearches(theme),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildQuickTips(ThemeData theme) {
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                theme.primaryColor.withOpacity(0.1),
+                theme.colorScheme.secondary.withOpacity(0.1),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: theme.primaryColor.withOpacity(0.2),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
                 children: [
-                  Icon(
-                    Icons.trending_up,
-                    color: theme.primaryColor,
-                    size: 24,
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: theme.primaryColor.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(
+                      Icons.lightbulb,
+                      color: theme.primaryColor,
+                      size: 24,
+                    ),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 12),
                   Text(
-                    'Trending Searches',
+                    'Quick Tips',
                     style: TextStyle(
-                      fontSize: 20,
+                      fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: theme.colorScheme.tertiary,
+                      color: theme.primaryColor,
                     ),
                   ),
                 ],
               ),
+              const SizedBox(height: 16),
+              _buildTipItem('🔍 Type product name to see instant suggestions', theme),
+              _buildTipItem('🎤 Use voice search for hands-free searching', theme),
+              _buildTipItem('💰 Compare prices across local & online stores', theme),
+              _buildTipItem('📍 Find nearest stores with best deals', theme),
+              _buildTipItem('⚡ Get real-time price alerts & updates', theme),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTipItem(String text, ThemeData theme) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: 14,
+          color: theme.colorScheme.tertiary.withOpacity(0.85),
+          height: 1.5,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSmartComparisons(ThemeData theme) {
+    final lastSearch = HiveService.getLastSearchedProduct();
+    
+    if (lastSearch == null) {
+      return const SliverToBoxAdapter(child: SizedBox.shrink());
+    }
+    
+    final stores = SearchData.getStoreResults(lastSearch.productId);
+    
+    // Sort by best choice
+    stores.sort((a, b) {
+      double scoreA = (a.rating ?? 0) * 100 - a.price / 100;
+      double scoreB = (b.rating ?? 0) * 100 - b.price / 100;
+      
+      if (!a.isOnline && a.distance != null) {
+        final distKm = double.tryParse(a.distance!.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 999;
+        scoreA += (10 / distKm) * 50;
+      }
+      
+      if (!b.isOnline && b.distance != null) {
+        final distKm = double.tryParse(b.distance!.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 999;
+        scoreB += (10 / distKm) * 50;
+      }
+      
+      return scoreB.compareTo(scoreA);
+    });
+    
+    return SliverToBoxAdapter(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 24, 20, 8),
+            child: Row(
+              children: [
+                Icon(Icons.history, color: theme.primaryColor, size: 24),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Based on Your Last Search',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: theme.colorScheme.tertiary,
+                        ),
+                      ),
+                      // CLICKABLE PRODUCT NAME
+                      GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _searchController.text = lastSearch.productName;
+                            _suggestions = SearchData.getFilteredSuggestions(lastSearch.productName);
+                          });
+                          FocusScope.of(context).requestFocus(_searchFocusNode);
+                        },
+                        child: Text(
+                          lastSearch.productName,
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: theme.primaryColor,
+                            fontWeight: FontWeight.w700,
+                            decoration: TextDecoration.underline,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
           
-          // Trending Categories
-          SliverPadding(
+          SizedBox(
+            height: 440,
+            child: ListView.builder(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              scrollDirection: Axis.horizontal,
+              itemCount: stores.length,
+              itemBuilder: (context, index) {
+                final store = stores[index];
+                String reason = '';
+                
+                if (index == 0) {
+                  if (!store.isOnline) {
+                    reason = 'Closest store with best reviews';
+                  } else {
+                    reason = 'Best price with fast delivery';
+                  }
+                } else if ((store.rating ?? 0) > 4.5) {
+                  reason = 'Highly rated by customers';
+                } else if (!store.isOnline) {
+                  reason = 'Nearby store - Visit today';
+                }
+                
+                return SmartComparisonCard(
+                  store: store,
+                  theme: theme,
+                  isFirst: index == 0,
+                  isBestChoice: index == 0,
+                  reason: reason,
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTrendingSearches(ThemeData theme) {
+    return SliverToBoxAdapter(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 24, 20, 16),
+            child: Row(
+              children: [
+                Icon(Icons.trending_up, color: theme.primaryColor, size: 24),
+                const SizedBox(width: 8),
+                Text(
+                  'Trending Searches',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: theme.colorScheme.tertiary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
+          Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            sliver: SliverGrid(
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                mainAxisSpacing: 12,
-                crossAxisSpacing: 12,
-                childAspectRatio: 1.5,
-              ),
-              delegate: SliverChildListDelegate([
+            child: GridView.count(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisCount: 2,
+              mainAxisSpacing: 12,
+              crossAxisSpacing: 12,
+              childAspectRatio: 1.5,
+              children: [
                 TrendingCategoryCard(
                   title: 'Electronics Store\nNear You',
                   icon: Icons.store,
@@ -401,7 +635,7 @@ class _SearchViewState extends State<SearchView>
                 TrendingCategoryCard(
                   title: 'Adidas Shoes\nCompare Price',
                   icon: Icons.shopping_bag,
-                  gradient: [const Color(0xFFf093fb), const Color(0xFff5576c)],
+                  gradient: [const Color(0xFFf093fb), const Color(0xFFF5576c)],
                   onTap: () => _onTrendingCategoryTap('adidas shoes'),
                 ),
                 TrendingCategoryCard(
@@ -416,93 +650,12 @@ class _SearchViewState extends State<SearchView>
                   gradient: [const Color(0xFF43e97b), const Color(0xFF38f9d7)],
                   onTap: () => _onTrendingCategoryTap('Samsung TV'),
                 ),
-                TrendingCategoryCard(
-                  title: 'Grocery Stores\nAround Me',
-                  icon: Icons.local_grocery_store,
-                  gradient: [const Color(0xFFfa709a), const Color(0xFFfee140)],
-                  onTap: () => _onTrendingCategoryTap('grocery store'),
-                ),
-                TrendingCategoryCard(
-                  title: 'Fashion Outlet\nSale Items',
-                  icon: Icons.checkroom,
-                  gradient: [const Color(0xFF30cfd0), const Color(0xFF330867)],
-                  onTap: () => _onTrendingCategoryTap('fashion outlet'),
-                ),
-              ]),
+              ],
             ),
           ),
           
-          // Quick Tips
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: theme.primaryColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: theme.primaryColor.withOpacity(0.2),
-                  ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.lightbulb_outline,
-                          color: theme.primaryColor,
-                          size: 20,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Quick Tips',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: theme.primaryColor,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    _buildTipItem(
-                      '🔍 Type product name to see suggestions',
-                      theme,
-                    ),
-                    _buildTipItem(
-                      '🎤 Use voice search for hands-free searching',
-                      theme,
-                    ),
-                    _buildTipItem(
-                      '💰 Compare prices across local stores',
-                      theme,
-                    ),
-                    _buildTipItem(
-                      '📍 Find nearest stores with best deals',
-                      theme,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
+          const SizedBox(height: 20),
         ],
-      ],
-    );
-  }
-
-  Widget _buildTipItem(String text, ThemeData theme) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Text(
-        text,
-        style: TextStyle(
-          fontSize: 13,
-          color: theme.colorScheme.tertiary.withOpacity(0.8),
-          height: 1.4,
-        ),
       ),
     );
   }
@@ -513,50 +666,24 @@ class _SearchViewState extends State<SearchView>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Best Price Banner
           _buildBestPriceBanner(theme),
-          
           const SizedBox(height: 24),
-          
-          // Offline Stores Section
-          _buildSectionHeader(
-            'Local Offline Stores',
-            _offlineResults.length,
-            theme,
-          ),
-          
+          _buildSectionHeader('Local Offline Stores', _offlineResults.length, theme),
           const SizedBox(height: 12),
-          
           ...List.generate(
             _offlineDisplayCount < _offlineResults.length 
                 ? _offlineDisplayCount 
                 : _offlineResults.length,
-            (index) => StoreResultItem(
-              store: _offlineResults[index],
-              theme: theme,
-            ),
+            (index) => StoreResultItem(store: _offlineResults[index], theme: theme),
           ),
-          
           if (_offlineResults.length > _offlineDisplayCount)
             _buildShowMoreButton(theme),
-          
           const SizedBox(height: 32),
-          
-          // Online Stores Section
-          _buildSectionHeader(
-            'Local Online Stores',
-            _onlineResults.length,
-            theme,
-          ),
-          
+          _buildSectionHeader('Local Online Stores', _onlineResults.length, theme),
           const SizedBox(height: 12),
-          
           ...List.generate(
             _onlineResults.length,
-            (index) => StoreResultItem(
-              store: _onlineResults[index],
-              theme: theme,
-            ),
+            (index) => StoreResultItem(store: _onlineResults[index], theme: theme),
           ),
         ],
       ),
@@ -572,22 +699,17 @@ class _SearchViewState extends State<SearchView>
     
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [
-            theme.primaryColor,
-            theme.primaryColor.withOpacity(0.8),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+          colors: [theme.primaryColor, theme.primaryColor.withOpacity(0.8)],
         ),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
             color: theme.primaryColor.withOpacity(0.3),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
           ),
         ],
       ),
@@ -596,14 +718,10 @@ class _SearchViewState extends State<SearchView>
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
+              color: Colors.white.withOpacity(0.25),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Icon(
-              Icons.star,
-              color: Colors.white,
-              size: 32,
-            ),
+            child: const Icon(Icons.star, color: Colors.white, size: 32),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -614,13 +732,13 @@ class _SearchViewState extends State<SearchView>
                   'Best Price Found!',
                   style: TextStyle(
                     color: Colors.white,
-                    fontSize: 16,
+                    fontSize: 17,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '₹${cheapest.price.toStringAsFixed(0)} at ${cheapest.storeName}',
+                  '${NumberFormatter.formatIndianPrice(cheapest.price)} at ${cheapest.storeName}',
                   style: TextStyle(
                     color: Colors.white.withOpacity(0.95),
                     fontSize: 14,
@@ -655,7 +773,7 @@ class _SearchViewState extends State<SearchView>
           child: Text(
             '$count',
             style: TextStyle(
-              fontSize: 12,
+              fontSize: 13,
               fontWeight: FontWeight.bold,
               color: theme.primaryColor,
             ),
@@ -681,9 +799,9 @@ class _SearchViewState extends State<SearchView>
           ),
           style: TextButton.styleFrom(
             backgroundColor: theme.primaryColor.withOpacity(0.1),
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(25),
             ),
           ),
         ),

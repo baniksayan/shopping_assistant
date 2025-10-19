@@ -459,6 +459,8 @@ class _HomeViewState extends State<HomeView> with SingleTickerProviderStateMixin
                       color: theme.colorScheme.tertiary.withOpacity(0.5),
                       fontSize: 15,
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
                 GestureDetector(
