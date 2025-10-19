@@ -15,53 +15,58 @@ class SearchSuggestionItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 5,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: ListTile(
-        onTap: onTap,
-        leading: Container(
-          width: 45,
-          height: 45,
-          decoration: BoxDecoration(
-            color: theme.primaryColor.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(
-            _getCategoryIcon(product.category),
-            color: theme.primaryColor,
-            size: 24,
-          ),
+    return SafeArea(
+      top: false,
+      left: false,
+      right: false,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 5,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
-        title: Text(
-          product.name,
-          style: TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w600,
-            color: theme.colorScheme.tertiary,
+        child: ListTile(
+          onTap: onTap,
+          leading: Container(
+            width: 45,
+            height: 45,
+            decoration: BoxDecoration(
+              color: theme.primaryColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              _getCategoryIcon(product.category),
+              color: theme.primaryColor,
+              size: 24,
+            ),
           ),
-        ),
-        subtitle: Text(
-          product.category,
-          style: TextStyle(
-            fontSize: 12,
-            color: theme.colorScheme.tertiary.withOpacity(0.6),
+          title: Text(
+            product.name,
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: theme.colorScheme.tertiary,
+            ),
           ),
-        ),
-        trailing: Icon(
-          Icons.arrow_forward_ios,
-          size: 16,
-          color: theme.colorScheme.tertiary.withOpacity(0.4),
+          subtitle: Text(
+            product.category,
+            style: TextStyle(
+              fontSize: 12,
+              color: theme.colorScheme.tertiary.withOpacity(0.6),
+            ),
+          ),
+          trailing: Icon(
+            Icons.arrow_forward_ios,
+            size: 16,
+            color: theme.colorScheme.tertiary.withOpacity(0.4),
+          ),
         ),
       ),
     );

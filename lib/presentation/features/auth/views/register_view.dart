@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:shopping_assistant/presentation/common/widgets/country_dropdown.dart';
+import 'package:shopping_assistant/presentation/common/widgets/gender_dropdown.dart';
 import '../../../../data/data_sources/local/hive_service.dart';
 import '../../../../data/models/user_model.dart';
 import '../../../../core/theme/app_themes.dart';
@@ -24,7 +26,6 @@ class _RegisterViewState extends State<RegisterView> {
   String _selectedCountry = 'India';
   bool _isLoading = false;
   
-  final List<String> _genders = ['Male', 'Female', 'Other'];
   final List<String> _countries = [
     'India',
     'Bangladesh',
@@ -175,8 +176,12 @@ class _RegisterViewState extends State<RegisterView> {
                 
                 const SizedBox(height: 32),
                 
-                // Country Selector
-                _buildCountrySelector(theme),
+                // Country Selector - Platform Specific
+                CountryDropdown(
+                  selectedCountry: _selectedCountry,
+                  onCountryChanged: _onCountryChanged,
+                  labelText: 'Select Country (Theme)',
+                ),
                 
                 const SizedBox(height: 20),
                 
@@ -214,8 +219,16 @@ class _RegisterViewState extends State<RegisterView> {
                 
                 const SizedBox(height: 16),
                 
-                // Gender Selector
-                _buildGenderSelector(theme),
+                // Gender Selector - Platform Specific (NEW!)
+                GenderDropdown(
+                  selectedGender: _selectedGender,
+                  onGenderChanged: (String newGender) {
+                    setState(() {
+                      _selectedGender = newGender;
+                    });
+                  },
+                  labelText: 'Gender',
+                ),
                 
                 const SizedBox(height: 16),
                 
@@ -263,12 +276,19 @@ class _RegisterViewState extends State<RegisterView> {
                 const SizedBox(height: 32),
                 
                 // Register Button
-                _buildRegisterButton(theme),
-                
-                const SizedBox(height: 16),
-                
-                // Login Link
-                _buildLoginLink(theme),
+                SafeArea(
+                  top: false,
+                  left: false,
+                  right: false,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _buildRegisterButton(theme),
+                      const SizedBox(height: 16),
+                      _buildLoginLink(theme),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
@@ -315,57 +335,6 @@ class _RegisterViewState extends State<RegisterView> {
                 );
               }).toList(),
               onChanged: _onCountryChanged,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildGenderSelector(ThemeData theme) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Gender',
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: theme.colorScheme.tertiary,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: theme.primaryColor.withOpacity(0.3)),
-          ),
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
-              value: _selectedGender,
-              isExpanded: true,
-              icon: Icon(Icons.arrow_drop_down, color: theme.primaryColor),
-              items: _genders.map((String gender) {
-                return DropdownMenuItem<String>(
-                  value: gender,
-                  child: Text(
-                    gender,
-                    style: TextStyle(
-                      color: theme.colorScheme.tertiary,
-                      fontSize: 16,
-                    ),
-                  ),
-                );
-              }).toList(),
-              onChanged: (String? newValue) {
-                if (newValue != null) {
-                  setState(() {
-                    _selectedGender = newValue;
-                  });
-                }
-              },
             ),
           ),
         ),

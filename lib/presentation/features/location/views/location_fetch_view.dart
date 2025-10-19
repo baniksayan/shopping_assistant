@@ -210,16 +210,21 @@ class _LocationFetchViewState extends State<LocationFetchView>
             
             const SizedBox(height: 40),
             
-            // Info text
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 40),
-              child: Text(
-                'This helps us show you the best deals from nearby stores',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: theme.colorScheme.tertiary.withOpacity(0.6),
+            // Info text wrapped with SafeArea
+            SafeArea(
+              top: false,
+              left: false,
+              right: false,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 40),
+                child: Text(
+                  'This helps us show you the best deals from nearby stores',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: theme.colorScheme.tertiary.withOpacity(0.6),
+                  ),
+                  textAlign: TextAlign.center,
                 ),
-                textAlign: TextAlign.center,
               ),
             ),
           ],

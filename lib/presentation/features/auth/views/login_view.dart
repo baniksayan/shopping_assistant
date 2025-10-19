@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shopping_assistant/presentation/common/widgets/country_dropdown.dart';
 import '../../../../data/data_sources/local/hive_service.dart';
 import '../../../../core/theme/app_themes.dart';
 import 'register_view.dart';
@@ -206,8 +207,12 @@ class _LoginViewState extends State<LoginView> {
                 
                 const SizedBox(height: 40),
                 
-                // Country Selector
-                _buildCountrySelector(theme),
+                // Country Selector (updated to use CountryDropdown)
+                CountryDropdown(
+                  selectedCountry: _selectedCountry,
+                  onCountryChanged: _onCountryChanged,
+                  labelText: 'Select Country',
+                ),
                 
                 const SizedBox(height: 24),
                 
@@ -224,18 +229,29 @@ class _LoginViewState extends State<LoginView> {
                 
                 const SizedBox(height: 24),
                 
-                // Login/Verify Button
-                _buildActionButton(theme),
-                
-                const SizedBox(height: 16),
-                
-                // Resend OTP (if OTP sent)
-                if (_isOtpSent) _buildResendOtp(theme),
-                
-                const SizedBox(height: 32),
-                
-                // Register Link
-                _buildRegisterLink(theme),
+                // Wrap bottom widgets with SafeArea
+                SafeArea(
+                  top: false,
+                  left: false,
+                  right: false,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Login/Verify Button
+                      _buildActionButton(theme),
+                      
+                      const SizedBox(height: 16),
+                      
+                      // Resend OTP (if OTP sent)
+                      if (_isOtpSent) _buildResendOtp(theme),
+                      
+                      const SizedBox(height: 32),
+                      
+                      // Register Link
+                      _buildRegisterLink(theme),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
@@ -268,6 +284,7 @@ class _LoginViewState extends State<LoginView> {
   }
 
   Widget _buildCountrySelector(ThemeData theme) {
+    // Note: This method is now unused after switching to CountryDropdown.
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

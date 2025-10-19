@@ -91,8 +91,18 @@ class _HomeViewState extends State<HomeView> with SingleTickerProviderStateMixin
   void _openSearch({bool withVoice = false}) {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => SearchView(openWithVoice: withVoice),
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) {
+          return SearchView(openWithVoice: withVoice);
+        },
+        transitionDuration: const Duration(milliseconds: 300),
+        reverseTransitionDuration: const Duration(milliseconds: 250),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return FadeTransition(
+            opacity: animation,
+            child: child,
+          );
+        },
       ),
     );
   }
@@ -126,27 +136,32 @@ class _HomeViewState extends State<HomeView> with SingleTickerProviderStateMixin
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Animated Logo Section
-                    _buildAnimatedLogoSection(theme),
-                    
-                    const SizedBox(height: 30),
-                    
-                    // Search Bar
-                    _buildSearchBar(theme),
-                    
-                    const SizedBox(height: 30),
-                    
-                    // Quick Actions
-                    _buildQuickActions(theme),
-                    
-                    const SizedBox(height: 30),
-                    
-                    // Features Section
-                    _buildFeaturesSection(theme),
-                  ],
+                child: SafeArea( // <-- Wrap bottom widgets with SafeArea
+                  top: false,
+                  left: false,
+                  right: false,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Animated Logo Section
+                      _buildAnimatedLogoSection(theme),
+                      
+                      const SizedBox(height: 30),
+                      
+                      // Search Bar
+                      _buildSearchBar(theme),
+                      
+                      const SizedBox(height: 30),
+                      
+                      // Quick Actions
+                      _buildQuickActions(theme),
+                      
+                      const SizedBox(height: 30),
+                      
+                      // Features Section
+                      _buildFeaturesSection(theme),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -413,42 +428,56 @@ class _HomeViewState extends State<HomeView> with SingleTickerProviderStateMixin
   }
 
   Widget _buildSearchBar(ThemeData theme) {
-    return GestureDetector(
-      onTap: () => _openSearch(),
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 2),
+    return Hero(
+      tag: 'searchBar',
+      child: Material(
+        color: Colors.transparent,
+        child: GestureDetector(
+          onTap: () => _openSearch(),
+          child: Container(
+            height: 56,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(28),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.08),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
-          ],
-        ),
-        child: AbsorbPointer(
-          child: TextField(
-            decoration: InputDecoration(
-              hintText: 'Search products, stores, deals...',
-              hintStyle: TextStyle(
-                color: theme.colorScheme.tertiary.withOpacity(0.5),
-              ),
-              prefixIcon: Icon(Icons.search, color: theme.primaryColor),
-              suffixIcon: IconButton(
-                icon: Icon(Icons.mic, color: theme.primaryColor),
-                onPressed: () => _openSearch(withVoice: true),
-              ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-                borderSide: BorderSide.none,
-              ),
-              filled: true,
-              fillColor: Colors.white,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 20,
-                vertical: 16,
-              ),
+            child: Row(
+              children: [
+                const SizedBox(width: 20),
+                Icon(Icons.search, color: theme.primaryColor, size: 24),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Search products, stores, deals...',
+                    style: TextStyle(
+                      color: theme.colorScheme.tertiary.withOpacity(0.5),
+                      fontSize: 15,
+                    ),
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () => _openSearch(withVoice: true),
+                  child: Container(
+                    margin: const EdgeInsets.only(right: 8),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: theme.primaryColor,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.mic,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ),

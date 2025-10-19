@@ -4,6 +4,8 @@ import '../../../../data/data_sources/local/hive_service.dart';
 import '../../../../data/models/user_model.dart';
 import '../../../../data/models/chat_history_model.dart';
 import '../../../../core/theme/app_themes.dart';
+import '../../../../core/constants/countries.dart';
+import '../../../common/widgets/country_dropdown.dart';
 import '../../profile/views/profile_view.dart';
 import '../../auth/views/login_view.dart';
 
@@ -25,15 +27,6 @@ class _AppDrawerState extends State<AppDrawer> {
   List<ChatHistoryModel> _chatHistory = [];
   String _selectedCountry = 'India';
 
-  final List<String> _countries = [
-    'India',
-    'Bangladesh',
-    'Nepal',
-    'Bhutan',
-    'Singapore',
-    'Sri Lanka',
-  ];
-
   @override
   void initState() {
     super.initState();
@@ -47,19 +40,17 @@ class _AppDrawerState extends State<AppDrawer> {
     });
   }
 
-  void _onCountryChanged(String? country) {
-    if (country != null) {
-      setState(() {
-        _selectedCountry = country;
-      });
-      
-      HiveService.saveSelectedTheme(country);
-      
-      final theme = _getThemeFromCountry(country);
-      widget.onThemeChanged(theme);
-      
-      Navigator.pop(context);
-    }
+  void _onCountryChanged(String country) {
+    setState(() {
+      _selectedCountry = country;
+    });
+    
+    HiveService.saveSelectedTheme(country);
+    
+    final theme = _getThemeFromCountry(country);
+    widget.onThemeChanged(theme);
+    
+    Navigator.pop(context);
   }
 
   AppTheme _getThemeFromCountry(String country) {
@@ -87,6 +78,9 @@ class _AppDrawerState extends State<AppDrawer> {
       builder: (context) => AlertDialog(
         title: const Text('Logout'),
         content: const Text('Are you sure you want to logout?'),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -103,15 +97,17 @@ class _AppDrawerState extends State<AppDrawer> {
     if (confirm == true && mounted) {
       await HiveService.updateLoginStatus(false);
       
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(
-          builder: (context) => LoginView(
-            onThemeChanged: widget.onThemeChanged,
+      if (mounted) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(
+            builder: (context) => LoginView(
+              onThemeChanged: widget.onThemeChanged,
+            ),
           ),
-        ),
-        (route) => false,
-      );
+          (route) => false,
+        );
+      }
     }
   }
 
@@ -380,100 +376,65 @@ class _AppDrawerState extends State<AppDrawer> {
   }
 
   Widget _buildBottomActions(ThemeData theme) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, -2),
-          ),
-        ],
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Country Selector
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-            decoration: BoxDecoration(
-              color: theme.scaffoldBackgroundColor,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: theme.primaryColor.withOpacity(0.3),
-              ),
+    return SafeArea(
+      top: false,
+      left: false,
+      right: false,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, -2),
             ),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.language,
-                  color: theme.primaryColor,
-                  size: 20,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      value: _selectedCountry,
-                      isExpanded: true,
-                      icon: Icon(
-                        Icons.arrow_drop_down,
-                        color: theme.primaryColor,
-                      ),
-                      items: _countries.map((String country) {
-                        return DropdownMenuItem<String>(
-                          value: country,
-                          child: Text(
-                            country,
-                            style: TextStyle(
-                              color: theme.colorScheme.tertiary,
-                              fontSize: 14,
-                            ),
-                          ),
-                        );
-                      }).toList(),
-                      onChanged: _onCountryChanged,
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Country Selector with Flags (Using Reusable Component)
+            CountryDropdown(
+              selectedCountry: _selectedCountry,
+              onCountryChanged: _onCountryChanged,
+              showLabel: false,
+            ),
+            
+            const SizedBox(height: 12),
+            
+            // Profile Button
+            _buildActionButton(
+              icon: Icons.person_outline,
+              label: 'View Profile',
+              theme: theme,
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ProfileView(
+                      onThemeChanged: widget.onThemeChanged,
+                      onProfileUpdated: () {},
                     ),
                   ),
-                ),
-              ],
+                );
+              },
             ),
-          ),
-          
-          const SizedBox(height: 12),
-          
-          // Profile Button
-          _buildActionButton(
-            icon: Icons.person_outline,
-            label: 'View Profile',
-            theme: theme,
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => ProfileView(
-                    onThemeChanged: widget.onThemeChanged,
-                    onProfileUpdated: () {},
-                  ),
-                ),
-              );
-            },
-          ),
-          
-          const SizedBox(height: 8),
-          
-          // Logout Button
-          _buildActionButton(
-            icon: Icons.logout,
-            label: 'Logout',
-            theme: theme,
-            isDestructive: true,
-            onTap: _logout,
-          ),
-        ],
+            
+            const SizedBox(height: 8),
+            
+            // Logout Button
+            _buildActionButton(
+              icon: Icons.logout,
+              label: 'Logout',
+              theme: theme,
+              isDestructive: true,
+              onTap: _logout,
+            ),
+          ],
+        ),
       ),
     );
   }

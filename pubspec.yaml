@@ -35,3 +35,10 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/icons/flags/indiaflag.png
+    - assets/icons/flags/bangladeshflag.png
+    - assets/icons/flags/nepalflag.png
+    - assets/icons/flags/bhutanflag.png
+    - assets/icons/flags/singaporeflag.png
+    - assets/icons/flags/srilankaflag.png
